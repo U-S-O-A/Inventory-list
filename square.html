@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Square Removals - AI-Powered Inventory & Tips</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f4f5;
+        }
+        .logo-font {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+        }
+        .logo-subfont {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            position: relative;
+            top: -0.5rem;
+        }
+        .summary-card {
+            position: sticky;
+            top: 2rem;
+            transition: all 0.3s ease-in-out;
+        }
+        .item-card {
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .item-card:not(.selected):hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+        }
+        .item-card.selected {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            border-color: #000;
+        }
+        .counter-btn { transition: all 0.1s ease-in-out; }
+        .counter-btn:active { transform: scale(0.9); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .modal-overlay { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease; }
+        .page-section { transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out; }
+        .suggestion-box {
+            transition: all 0.3s ease-in-out;
+            border-left: 4px solid #10b981; /* Green-500 */
+        }
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #FFF;
+            border-bottom-color: #FF3D00;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Form Styles */
+        .form-input {
+            @apply w-full px-3 py-2 bg-zinc-200 border border-zinc-400 rounded-md focus:outline-none focus:ring-2 focus:ring-black;
+        }
+        .form-label {
+            @apply block text-sm font-medium text-zinc-700 mb-1;
+        }
+        /* Heart Shake Animation */
+        @keyframes heart-shake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(15deg); }
+            75% { transform: rotate(-15deg); }
+        }
+        .shake {
+            animation: heart-shake 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-zinc-100 text-zinc-800">
+
+    <!-- Header with Logo -->
+    <header class="bg-white py-6 shadow-sm">
+        <div class="container mx-auto px-4 text-center">
+            <h1 class="text-5xl md:text-7xl logo-font text-black uppercase">square.</h1>
+            <h2 class="text-lg md:text-xl logo-subfont text-black">REMOVALS</h2>
+            <hr class="mt-2 border-t-2 border-black w-32 mx-auto">
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 md:p-8">
+
+        <!-- Page 1: Inventory List -->
+        <div id="page-1" class="page-section">
+            <div class="text-center mb-8 md:mb-12">
+                <h3 class="text-2xl md:text-3xl font-bold text-zinc-900">Step 1: Build Your Inventory</h3>
+                <p class="text-zinc-600 mt-2 max-w-2xl mx-auto">Select your items and specify quantities. Your required truck size and personalized moving tips will be generated automatically.</p>
+            </div>
+            <div class="flex flex-col lg:flex-row gap-8">
+                <div class="w-full lg:w-2/3 space-y-8">
+                    <div id="inventory-container" class="space-y-8"></div>
+                     <!-- Custom Item Form -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-bold text-zinc-800 mb-4">Add Other Items</h3>
+                        <p class="text-zinc-600 text-sm mb-4">If you have items not on our list, please add them here with an estimated size in cubic meters (m³).</p>
+                        <form id="custom-item-form" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                            <div>
+                                <label for="custom-item-name" class="form-label">Item Name</label>
+                                <input type="text" id="custom-item-name" class="form-input" placeholder="e.g., Large Pot Plant">
+                            </div>
+                            <div class="w-24">
+                                <label for="custom-item-size" class="form-label">Size (m³)</label>
+                                <input type="number" id="custom-item-size" class="form-input" step="0.1" min="0.1" placeholder="e.g., 0.5">
+                            </div>
+                            <div class="w-24">
+                                <label for="custom-item-quantity" class="form-label">Quantity</label>
+                                <input type="number" id="custom-item-quantity" class="form-input" min="1" placeholder="e.g., 2">
+                            </div>
+                            <button type="submit" class="sm:col-start-3 justify-self-start bg-zinc-800 text-white font-bold py-2 px-6 rounded-lg hover:bg-black transition-colors">Add Item</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="w-full lg:w-1/3">
+                    <div class="summary-card bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold border-b pb-3 mb-4 text-zinc-900">Your Move Summary</h3>
+                        <div id="summary-list" class="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
+                            <p id="empty-summary-text" class="text-zinc-500">Your selected items will appear here.</p>
+                        </div>
+                        <div class="border-t mt-4 pt-4 space-y-2">
+                            <div class="flex justify-between items-center font-semibold"><span>Total Items:</span><span id="total-items" class="text-black font-bold">0</span></div>
+                            <div class="flex justify-between items-center font-semibold"><span>Total Volume:</span><span id="total-volume" class="text-black font-bold">0.00 m³</span></div>
+                        </div>
+                        <div id="suggestion-container" class="mt-4">
+                            <div id="suggestion-box" class="suggestion-box bg-emerald-50 p-4 rounded-lg hidden"><h4 class="font-bold text-emerald-800">Suggested Vehicle</h4><p id="suggestion-text" class="text-emerald-700 text-sm mt-1"></p></div>
+                        </div>
+                        <button id="proceed-btn" class="mt-4 w-full bg-black text-white font-bold py-3 rounded-lg hover:bg-zinc-800 transition-colors duration-300 disabled:bg-zinc-400 disabled:cursor-not-allowed" disabled>Proceed to Your Details &rarr;</button>
+                        <button id="gemini-tips-btn" class="mt-2 w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>Get Pro Moving Tips</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 2: Client Details Form -->
+        <div id="page-2" class="page-section hidden">
+             <div class="text-center mb-8 md:mb-12">
+                <h3 class="text-2xl md:text-3xl font-bold text-zinc-900">Step 2: Tell Us About Your Move</h3>
+                <p class="text-zinc-600 mt-2 max-w-2xl mx-auto">Please provide your details and information about the locations so we can give you an accurate quote.</p>
+            </div>
+            <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+                <form id="details-form" class="space-y-6">
+                    <!-- Personal Details -->
+                    <div class="bg-zinc-50 p-4 rounded-lg border border-black">
+                        <h4 class="font-bold text-zinc-800 mb-4">Contact Information</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div><label for="name" class="form-label">Name</label><input type="text" id="name" class="form-input" required></div>
+                            <div><label for="surname" class="form-label">Surname</label><input type="text" id="surname" class="form-input" required></div>
+                            <div><label for="email" class="form-label">Email Address</label><input type="email" id="email" class="form-input" required></div>
+                            <div><label for="phone" class="form-label">Phone Number</label><input type="tel" id="phone" class="form-input" required></div>
+                        </div>
+                    </div>
+
+                     <!-- Date & Time -->
+                    <div class="bg-zinc-50 p-4 rounded-lg border border-black">
+                        <h4 class="font-bold text-zinc-800 mb-4">Preferred Moving Date & Time</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div><label for="move-date" class="form-label">Date</label><input type="date" id="move-date" class="form-input" required></div>
+                            <div>
+                                <label for="move-time" class="form-label">Arrival Time</label>
+                                <select id="move-time" class="form-input" required>
+                                    <option value="">Select a time</option>
+                                    <option value="08:00 AM">08:00 AM</option>
+                                    <option value="09:00 AM">09:00 AM</option>
+                                    <option value="10:00 AM">10:00 AM</option>
+                                    <option value="11:00 AM">11:00 AM</option>
+                                    <option value="12:00 PM">12:00 PM</option>
+                                    <option value="1:00 PM">01:00 PM</option>
+                                    <option value="2:00 PM">02:00 PM</option>
+                                    <option value="3:00 PM">03:00 PM</option>
+                                    <option value="4:00 PM">04:00 PM</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pickup Locations Container -->
+                    <div id="pickup-locations-container" class="space-y-6"></div>
+                    <div class="my-4 flex justify-center">
+                        <button type="button" id="add-pickup-btn" class="bg-zinc-200 text-zinc-700 hover:bg-zinc-300 font-bold py-2 px-4 rounded-full flex items-center justify-center text-md transition-transform duration-200 hover:scale-105" title="Add another pickup location">
+                            <span class="text-xl mr-2">+</span> Add Pick Up
+                        </button>
+                    </div>
+
+                    <!-- Dropoff Destinations Container -->
+                    <div id="dropoff-destinations-container" class="space-y-6"></div>
+                     <div class="my-4 flex justify-center">
+                        <button type="button" id="add-destination-btn" class="bg-zinc-200 text-zinc-700 hover:bg-zinc-300 font-bold py-2 px-4 rounded-full flex items-center justify-center text-md transition-transform duration-200 hover:scale-105" title="Add another dropoff location">
+                            <span class="text-xl mr-2">+</span> Add Drop Off
+                        </button>
+                    </div>
+
+
+                    <!-- Action Buttons -->
+                    <div class="flex gap-4 pt-4 border-t">
+                        <button type="button" id="back-btn" class="w-full bg-zinc-200 text-zinc-800 font-bold py-3 rounded-lg hover:bg-zinc-300 transition-colors flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+                            Back to Inventory
+                        </button>
+                        <button type="submit" id="submit-btn" class="w-full bg-black text-white font-bold py-3 rounded-lg hover:bg-zinc-800 transition-colors">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <footer id="thank-you-note" class="text-center py-8 text-zinc-500 text-sm">
+            <p>Thank you for using Square Removals <span id="heart" class="inline-block">❤️</span></p>
+        </footer>
+    </main>
+
+    <!-- Modal for Final List -->
+    <div id="list-modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div id="list-modal-content" class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-3xl p-8 transform scale-95">
+            <div class="flex justify-between items-center border-b pb-4 mb-6"><h2 class="text-2xl font-bold text-zinc-900">Your Quote Summary</h2><button id="close-list-modal-btn" class="text-zinc-500 hover:text-black text-3xl leading-none">&times;</button></div>
+            <div id="final-list-container" class="max-h-[70vh] overflow-y-auto text-zinc-700 space-y-6 pr-4"></div>
+            <div id="email-status" class="text-center text-sm text-green-600 font-semibold mt-4"></div>
+            <div class="flex gap-4 mt-4"><button id="copy-list-btn" class="w-full bg-zinc-800 text-white font-bold py-3 rounded-lg hover:bg-black transition-colors">Copy to Clipboard</button><button onclick="window.print()" class="w-full bg-zinc-200 text-zinc-800 font-bold py-3 rounded-lg hover:bg-zinc-300">Print Summary</button></div>
+        </div>
+    </div>
+    
+    <!-- Modal for Gemini Tips -->
+    <div id="tips-modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div id="tips-modal-content" class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-3xl p-8 transform scale-95">
+             <div class="flex justify-between items-center border-b pb-4 mb-6"><h2 class="text-2xl font-bold text-zinc-900">Pro Moving Tips from Square Removals</h2><button id="close-tips-modal-btn" class="text-zinc-500 hover:text-black text-3xl leading-none">&times;</button></div>
+             <div id="tips-container" class="max-h-[60vh] overflow-y-auto text-zinc-700 space-y-4 pr-4 prose">
+                 <div id="loader-container" class="flex justify-center items-center h-48"><div class="loader"></div></div>
+             </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIG ---
+            const BUSINESS_EMAIL = "info@squareremovals.com"; // <-- SET YOUR BUSINESS EMAIL HERE
+
+            // --- DATA ---
+            const inventoryData = {
+                "Lounge / Living Room": {
+                    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>`,
+                    items: [
+                        { name: "1 Seater Couch", size: 0.6 }, { name: "2 Seater Couch", size: 1.2 }, { name: "3 Seater Couch", size: 1.5 }, { name: "4 Seater Couch", size: 2 },
+                        { name: "Sofa - L-Shape", size: 2.5 }, { name: "Ball & Claw Chair", size: 0.4 }, { name: "Book Case - L", size: 1 }, { name: "Book Case - M", size: 0.6 },
+                        { name: "Book Case - S", size: 0.3 }, { name: "CD / DVD Stand", size: 0.2 }, { name: "Chairs - Dining", size: 0.2 }, { name: "Chairs - Occasional", size: 0.3 },
+                        { name: "Chairs - Recliner", size: 0.8 }, { name: "Coffee Table", size: 0.3 }, { name: "Display Cabinet", size: 1 }, { name: "Grandfather Clock", size: 0.7 },
+                        { name: "Heater - Gas/Elec", size: 0.1 }, { name: "Lamp - Standing", size: 0.15 }, { name: "Ottoman", size: 0.4 }, { name: "Piano - Grand", size: 3.5 },
+                        { name: "Piano - Upright", size: 1.5 }, { name: "Side Table", size: 0.1 }, { name: "TV", size: 0.2 }, { name: "TV Cabinet / Stand", size: 0.6 }
+                    ]
+                },
+                "Kitchen & Appliances": {
+                    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 15h20"/><path d="M2 9.5h20"/><path d="M12 2v20"/><path d="M4 2v20"/><path d="M20 2v20"/></svg>`,
+                    items: [
+                        { name: "Brooms", size: 0.1 }, { name: "Chairs - Kitchen", size: 0.15 }, { name: "Cooler Box", size: 0.1 }, { name: "Dishwasher", size: 0.4 },
+                        { name: "Freezer - Chest", size: 0.8 }, { name: "Fridge - Single", size: 0.8 }, { name: "Fridge - Double", size: 1.5 }, { name: "Ironing board", size: 0.05 },
+                        { name: "Kitchen Table", size: 0.8 }, { name: "Microwave", size: 0.1 }, { name: "Pots & Pans", size: 0.15 }, { name: "Tumble Dryer", size: 0.4 },
+                        { name: "Washing Machine", size: 0.4 }, { name: "Bar Stool", size: 0.15 }
+                    ]
+                },
+                "Bedroom": {
+                    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h20v18H2z"/><path d="M2 9h20"/><path d="M9 9v12"/></svg>`,
+                    items: [
+                        { name: "Bed Base & Mattress - King Size", size: 1.5 }, { name: "Bed Base & Mattress - Queen Size", size: 1.3 }, { name: "Bed Base & Mattress - Double", size: 1 }, { name: "Bed Base & Mattress - Three-Quarter", size: 0.8 },
+                        { name: "Bed Base & Mattress - Single", size: 0.6 }, { name: "Bunk Bed", size: 1.8 }, { name: "Chest of Drawers", size: 0.5 }, { name: "Compactum", size: 1 },
+                        { name: "Cot", size: 1 }, { name: "Dressing Table - L", size: 0.75 }, { name: "Dressing Table - M", size: 0.5 }, { name: "Headboard", size: 0.4 },
+                        { name: "Kist / Toy Box", size: 0.25 }, { name: "Pedestal / Bedside table", size: 0.15 }, { name: "Wardrobe - 2 door", size: 1.2 }, { name: "Wardrobe - 3 door", size: 1.8 }
+                    ]
+                },
+                "Office / Study": {
+                    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0l-1.28 2.55a1 1 0 0 1-.89.45H6.17a1 1 0 0 1-.89-.45L4 16m12-4h-4"/></svg>`,
+                    items: [
+                        { name: "Desk - L", size: 1 }, { name: "Desk - M", size: 0.6 }, { name: "Desk - S", size: 0.4 }, { name: "Office Chair", size: 0.2 },
+                        { name: "Filing Cabinet - 2 Draw", size: 0.3 }, { name: "Filing Cabinet - 4 Draw", size: 0.5 }, { name: "Printer / Fax machine", size: 0.1 }
+                    ]
+                },
+                "Outdoor / Garage": {
+                    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M22 21H2"/><path d="m22 15-4-4-2 2-3-3-4 4-2-2-3 3"/></svg>`,
+                    items: [
+                        { name: "Bicycle", size: 0.3 }, { name: "Braai / BBQ", size: 0.5 }, { name: "Canoe / Kayak", size: 1 }, { name: "Garden Bench", size: 0.5 },
+                        { name: "Garden Tools", size: 0.2 }, { name: "Ladders", size: 0.3 }, { name: "Lawn Mower", size: 0.5 }, { name: "Patio Table & Chairs", size: 1.5 },
+                        { name: "Pot Plants - L", size: 0.3 }, { name: "Pot Plants - M", size: 0.15 }, { name: "Pot Plants - S", size: 0.05 }, { name: "Surfboard", size: 0.2 },
+                        { name: "Toolbox / Trunk", size: 0.25 }, { name: "Trampoline", size: 2.5 }, { name: "Umbrella & Stand", size: 0.25 }
+                    ]
+                },
+                "Boxes & General": {
+                    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+                    items: [
+                        { name: "Box - Large", size: 0.25 }, { name: "Box - Medium", size: 0.1 }, { name: "Box - Small", size: 0.05 }, { name: "Artwork / Picture", size: 0.1 },
+                        { name: "Mirror", size: 0.1 }, { name: "Rug", size: 0.3 }, { name: "Suitcase", size: 0.15 }
+                    ]
+                }
+            };
+            const truckData = [ { ton: 3, volume: 18 }, { ton: 4, volume: 22 }, { ton: 5, volume: 30 }, { ton: 6, volume: 38 }, { ton: 8, volume: 50 }, { ton: 10, volume: 65 } ];
+            const trailerVolume = 10;
+            let inventoryState = {};
+            let pickupCount = 1;
+            let dropoffCount = 1;
+
+            // --- DOM ELEMENTS ---
+            const page1 = document.getElementById('page-1');
+            const page2 = document.getElementById('page-2');
+            const inventoryContainer = document.getElementById('inventory-container');
+            const summaryList = document.getElementById('summary-list');
+            const totalItemsEl = document.getElementById('total-items');
+            const totalVolumeEl = document.getElementById('total-volume');
+            const emptySummaryText = document.getElementById('empty-summary-text');
+            const proceedBtn = document.getElementById('proceed-btn');
+            const geminiTipsBtn = document.getElementById('gemini-tips-btn');
+            const suggestionBox = document.getElementById('suggestion-box');
+            const suggestionText = document.getElementById('suggestion-text');
+            const listModalOverlay = document.getElementById('list-modal-overlay');
+            const listModalContent = document.getElementById('list-modal-content');
+            const closeListModalBtn = document.getElementById('close-list-modal-btn');
+            const finalLisContainer = document.getElementById('final-list-container');
+            const copyListBtn = document.getElementById('copy-list-btn');
+            const emailStatusEl = document.getElementById('email-status');
+            const tipsModalOverlay = document.getElementById('tips-modal-overlay');
+            const tipsModalContent = document.getElementById('tips-modal-content');
+            const closeTipsModalBtn = document.getElementById('close-tips-modal-btn');
+            const tipsContainer = document.getElementById('tips-container');
+            const loaderContainer = document.getElementById('loader-container');
+            const detailsForm = document.getElementById('details-form');
+            const backBtn = document.getElementById('back-btn');
+            const addPickupBtn = document.getElementById('add-pickup-btn');
+            const pickupContainer = document.getElementById('pickup-locations-container');
+            const addDestinationBtn = document.getElementById('add-destination-btn');
+            const dropoffContainer = document.getElementById('dropoff-destinations-container');
+            const heart = document.getElementById('heart');
+            const customItemForm = document.getElementById('custom-item-form');
+            const moveDateInput = document.getElementById('move-date');
+
+            // --- RENDER FUNCTIONS ---
+            const renderInventory = () => {
+                inventoryContainer.innerHTML = '';
+                for (const room in inventoryData) {
+                    const roomData = inventoryData[room];
+                    const roomSection = document.createElement('div');
+                    roomSection.className = 'room-section';
+                    roomSection.innerHTML = `
+                        <div class="flex items-center gap-3 mb-4"><div class="text-black">${roomData.icon}</div><h3 class="text-xl font-bold text-zinc-800">${room}</h3></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            ${roomData.items.map(item => `
+                                <div class="item-card bg-white rounded-lg p-3 flex justify-between items-center border-2 border-transparent" data-item-name="${item.name}" data-item-size="${item.size}">
+                                    <div>
+                                        <span class="font-semibold text-zinc-800 leading-tight">${item.name}</span>
+                                        <span class="block text-xs text-zinc-500">${item.size} m³</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 pl-2">
+                                        <button class="counter-btn minus-btn bg-zinc-200 text-zinc-700 rounded-full w-7 h-7 flex items-center justify-center font-bold text-lg flex-shrink-0" disabled>-</button>
+                                        <span class="item-count font-bold text-lg w-6 text-center">0</span>
+                                        <button class="counter-btn plus-btn bg-black text-white rounded-full w-7 h-7 flex items-center justify-center font-bold text-lg flex-shrink-0">+</button>
+                                    </div>
+                                </div>`).join('')}
+                        </div>`;
+                    inventoryContainer.appendChild(roomSection);
+                }
+                anime.timeline({ easing: 'easeOutExpo', duration: 750 }).add({ targets: '.room-section', opacity: [0, 1], translateY: [30, 0], delay: anime.stagger(150) }).add({ targets: '.item-card', opacity: [0, 1], translateY: [20, 0], delay: anime.stagger(30, { from: 'first' }) }, '-=500');
+            };
+
+            const updateTruckSuggestion = (volume) => {
+                if (volume === 0) { suggestionBox.classList.add('hidden'); return; }
+                suggestionBox.classList.remove('hidden');
+                let suggestedTruck = truckData.find(truck => volume <= truck.volume);
+                let suggestionMessage = '';
+                if (suggestedTruck) {
+                    const percentageFull = (volume / suggestedTruck.volume) * 100;
+                    suggestionMessage = `A <strong>${suggestedTruck.ton}-ton</strong> truck should be sufficient.`;
+                    if (percentageFull > 85) suggestionMessage += `<br>It will be quite full, consider adding a <strong>trailer</strong>.`;
+                } else {
+                    const largestTruck = truckData[truckData.length - 1];
+                    const remainingVolume = volume - largestTruck.volume;
+                    const trailersNeeded = Math.ceil(remainingVolume / trailerVolume);
+                    suggestionMessage = `A <strong>${largestTruck.ton}-ton</strong> truck plus <strong>${trailersNeeded} trailer(s)</strong> will be required.`;
+                }
+                suggestionText.innerHTML = suggestionMessage;
+            };
+
+            const updateSummary = () => {
+                summaryList.innerHTML = '';
+                let totalCount = 0;
+                let totalVolume = 0;
+                const sortedItems = Object.keys(inventoryState).sort();
+                if (sortedItems.length === 0) {
+                    summaryList.appendChild(emptySummaryText);
+                    proceedBtn.disabled = true;
+                    geminiTipsBtn.disabled = true;
+                } else {
+                    emptySummaryText.remove();
+                    sortedItems.forEach(item => {
+                        const stateItem = inventoryState[item];
+                        if (stateItem.count > 0) {
+                            const li = document.createElement('div');
+                            li.className = 'summary-item flex justify-between items-center bg-zinc-100 p-2 rounded-md';
+                            li.innerHTML = `<span class="text-sm font-medium text-zinc-800">${item}</span><span class="font-bold text-black">${stateItem.count}</span>`;
+                            summaryList.appendChild(li);
+                            totalCount += stateItem.count;
+                            totalVolume += stateItem.count * stateItem.size;
+                        }
+                    });
+                    proceedBtn.disabled = false;
+                    geminiTipsBtn.disabled = false;
+                    anime({ targets: '.summary-item', opacity: [0, 1], translateY: [10, 0], duration: 400, delay: anime.stagger(50) });
+                }
+                totalItemsEl.textContent = totalCount;
+                totalVolumeEl.textContent = `${totalVolume.toFixed(2)} m³`;
+                updateTruckSuggestion(totalVolume);
+            };
+
+            const handleCountChange = (e) => {
+                const button = e.target.closest('.counter-btn');
+                if (!button) return;
+                const card = button.closest('.item-card');
+                const itemName = card.dataset.itemName;
+                const itemSize = parseFloat(card.dataset.itemSize);
+                const countEl = card.querySelector('.item-count');
+                const minusBtn = card.querySelector('.minus-btn');
+                let currentCount = inventoryState[itemName] ? inventoryState[itemName].count : 0;
+                const wasNotSelected = currentCount === 0;
+
+                if (button.classList.contains('plus-btn')) { currentCount++; } 
+                else if (button.classList.contains('minus-btn')) { currentCount = Math.max(0, currentCount - 1); }
+
+                if (currentCount > 0) {
+                    inventoryState[itemName] = { count: currentCount, size: itemSize };
+                    if (wasNotSelected && button.classList.contains('plus-btn')) {
+                        anime({ targets: card, scale: [ { value: 1.05, duration: 150 }, { value: 1, duration: 250 } ], rotate: [ { value: '2deg', duration: 100 }, { value: '-2deg', duration: 100 }, { value: '0deg', duration: 100 } ], easing: 'easeInOutSine' });
+                    }
+                    card.classList.add('selected'); card.style.borderColor = '#000';
+                } else {
+                    delete inventoryState[itemName];
+                    card.classList.remove('selected'); card.style.borderColor = 'transparent';
+                }
+                countEl.textContent = currentCount;
+                minusBtn.disabled = currentCount === 0;
+                anime({ targets: countEl, scale: [1.3, 1], duration: 200, easing: 'easeOutExpo' });
+                updateSummary();
+            };
+            
+            const switchPage = (fromPage, toPage) => {
+                anime({
+                    targets: fromPage,
+                    opacity: 0,
+                    duration: 200,
+                    easing: 'easeInOutQuad',
+                    complete: () => {
+                        fromPage.classList.add('hidden');
+                        toPage.classList.remove('hidden');
+                        window.scrollTo(0, 0);
+                        anime({
+                            targets: toPage,
+                            opacity: [0, 1],
+                            translateY: [20, 0],
+                            duration: 300,
+                            easing: 'easeInOutQuad'
+                        });
+                    }
+                });
+            };
+
+            const openModal = (overlay, content) => {
+                overlay.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                anime({ targets: overlay, opacity: [0, 1], duration: 300 });
+                anime({ targets: content, scale: [0.95, 1], translateY: ['10px', '0px'], duration: 300 });
+            };
+
+            const closeModal = (overlay) => {
+                anime({ targets: overlay, opacity: [1, 0], duration: 300, complete: () => {
+                    overlay.classList.add('hidden');
+                    document.body.style.overflow = 'auto';
+                }});
+            };
+
+            const getFullSummaryText = (clientDetails) => {
+                let text = `Square Removals - Quote Summary\n\n--- CLIENT DETAILS ---\n`;
+                text += `Name: ${clientDetails.name} ${clientDetails.surname}\n`;
+                text += `Email: ${clientDetails.email}\n`;
+                text += `Phone: ${clientDetails.phone}\n`;
+                text += `Preferred Date: ${clientDetails.moveDate}\n`;
+                text += `Preferred Time: ${clientDetails.moveTime}\n`;
+                
+                clientDetails.pickups.forEach((pickup, index) => {
+                    text += `\n--- PICKUP ${index + 1} ---\n`;
+                    text += `Address: ${pickup.street}, ${pickup.area}, ${pickup.city}, ${pickup.province}, ${pickup.postal}\n`;
+                    text += `Property Type: ${pickup.propertyType}\n`;
+                    text += `Access: ${pickup.stairs === 'ground' ? 'Ground floor' : `Floor ${pickup.floor || 'N/A'} (${pickup.stairs})`}\n`;
+                    text += `Truck Restrictions: ${pickup.truckRestrictions === 'Yes' ? `Yes (${pickup.restrictionsDetails || 'Not specified'})` : 'No'}\n`;
+                });
+
+                clientDetails.dropoffs.forEach((dropoff, index) => {
+                    text += `\n--- DROPOFF ${index + 1} ---\n`;
+                    text += `Address: ${dropoff.street}, ${dropoff.area}, ${dropoff.city}, ${dropoff.province}, ${dropoff.postal}\n`;
+                    text += `Property Type: ${dropoff.propertyType}\n`;
+                    text += `Access: ${dropoff.stairs === 'ground' ? 'Ground floor' : `Floor ${dropoff.floor || 'N/A'} (${dropoff.stairs})`}\n`;
+                    text += `Truck Restrictions: ${dropoff.truckRestrictions === 'Yes' ? `Yes (${dropoff.restrictionsDetails || 'Not specified'})` : 'No'}\n`;
+                });
+
+                text += '\n--- INVENTORY ---\n';
+                const sortedItems = Object.keys(inventoryState).sort();
+                sortedItems.forEach(item => { if (inventoryState[item].count > 0) text += `${inventoryState[item].count}x ${item}\n`; });
+                
+                text += `\n--- ESTIMATE ---\n`;
+                text += `Total Items: ${totalItemsEl.textContent}\n`;
+                text += `Total Volume: ${totalVolumeEl.textContent}\n`;
+                text += `Suggested Vehicle: ${suggestionText.innerText.replace(/<br>/g, ' ')}\n`;
+                return text;
+            };
+
+            const generateFinalSummary = (clientDetails) => {
+                let detailsHtml = `
+                    <div>
+                        <h3 class="font-bold text-lg mb-2 border-b pb-2">Client & Move Details</h3>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                            <strong class="text-zinc-500">Name:</strong> <span>${clientDetails.name} ${clientDetails.surname}</span>
+                            <span></span>
+                            <strong class="text-zinc-500">Email:</strong> <span>${clientDetails.email}</span>
+                            <strong class="text-zinc-500">Phone:</strong> <span>${clientDetails.phone}</span>
+                            <strong class="text-zinc-500">Date:</strong> <span>${clientDetails.moveDate}</span>
+                            <strong class="text-zinc-500">Time:</strong> <span>${clientDetails.moveTime}</span>
+                        </div>
+                         <div class="mt-2 space-y-1 text-sm">
+                            ${clientDetails.pickups.map((pickup, index) => `
+                                <div class="grid grid-cols-2 gap-x-4 mt-2 pt-2 border-t">
+                                    <strong class="text-zinc-500 col-span-2">Pickup ${index + 1}</strong>
+                                    <strong class="text-zinc-500">Address:</strong> <span>${pickup.street}, ${pickup.area}, ${pickup.city}, ${pickup.postal}</span>
+                                    <strong class="text-zinc-500">Property:</strong> <span>${pickup.propertyType}</span>
+                                    <strong class="text-zinc-500">Access:</strong> <span>${pickup.stairs === 'ground' ? 'Ground floor' : `Floor ${pickup.floor || 'N/A'} (${pickup.stairs})`}</span>
+                                    <strong class="text-zinc-500">Restrictions:</strong> <span>${pickup.truckRestrictions === 'Yes' ? `Yes (${pickup.restrictionsDetails || 'Not specified'})` : 'No'}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="mt-2 space-y-1 text-sm">
+                            ${clientDetails.dropoffs.map((dropoff, index) => `
+                                <div class="grid grid-cols-2 gap-x-4 mt-2 pt-2 border-t">
+                                    <strong class="text-zinc-500 col-span-2">Dropoff ${index + 1}</strong>
+                                    <strong class="text-zinc-500">Address:</strong> <span>${dropoff.street}, ${dropoff.area}, ${dropoff.city}, ${dropoff.postal}</span>
+                                    <strong class="text-zinc-500">Property:</strong> <span>${dropoff.propertyType}</span>
+                                    <strong class="text-zinc-500">Access:</strong> <span>${dropoff.stairs === 'ground' ? 'Ground floor' : `Floor ${dropoff.floor || 'N/A'} (${dropoff.stairs})`}</span>
+                                    <strong class="text-zinc-500">Restrictions:</strong> <span>${dropoff.truckRestrictions === 'Yes' ? `Yes (${dropoff.restrictionsDetails || 'Not specified'})` : 'No'}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+
+                let inventoryHtml = `
+                    <div>
+                        <h3 class="font-bold text-lg mb-2 border-b pb-2">Inventory Summary</h3>
+                        <div class="grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
+                `;
+                const sortedItems = Object.keys(inventoryState).sort();
+                sortedItems.forEach(item => {
+                    if(inventoryState[item].count > 0) inventoryHtml += `<span>${inventoryState[item].count}x ${item}</span>`;
+                });
+                inventoryHtml += `
+                        </div>
+                        <div class="mt-4 pt-2 border-t font-bold flex justify-between">
+                            <span>Total Volume:</span><span>${totalVolumeEl.textContent}</span>
+                        </div>
+                        <div class="font-bold flex justify-between">
+                            <span>Suggested Vehicle:</span><span>${suggestionText.innerText}</span>
+                        </div>
+                    </div>`;
+
+                finalLisContainer.innerHTML = detailsHtml + inventoryHtml;
+                openModal(listModalOverlay, listModalContent);
+            };
+
+            const copyToClipboard = (summaryText) => {
+                const textArea = document.createElement('textarea');
+                textArea.value = summaryText;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    copyListBtn.textContent = 'Copied!';
+                    setTimeout(() => { copyListBtn.textContent = 'Copy to Clipboard'; }, 2000);
+                } catch (err) { console.error('Failed to copy text: ', err); }
+                document.body.removeChild(textArea);
+            };
+
+            const sendQuoteEmails = async (clientDetails, summaryText) => {
+                emailStatusEl.textContent = 'Submitting...';
+                emailStatusEl.classList.remove('text-red-600');
+                emailStatusEl.classList.add('text-green-600');
+                
+                // This function now sends the data to a backend endpoint (e.g., a PHP file)
+                try {
+                    // IMPORTANT: Replace './mailer.php' with the actual path to your PHP script
+                    const response = await fetch('./mailer.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            clientDetails: clientDetails,
+                            summaryText: summaryText,
+                            businessEmail: BUSINESS_EMAIL
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: 'Server returned an error' }));
+                        throw new Error(errorData.message || `Server Error: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+
+                    if(result.success) {
+                        emailStatusEl.textContent = 'Quote summary sent successfully!';
+                    } else {
+                        throw new Error(result.message || 'The PHP script reported an error.');
+                    }
+
+                } catch (error) {
+                    console.error('Email sending error:', error);
+                    emailStatusEl.textContent = `Error: ${error.message}`;
+                    emailStatusEl.classList.remove('text-green-600');
+                    emailStatusEl.classList.add('text-red-600');
+                } finally {
+                    setTimeout(() => { 
+                        emailStatusEl.textContent = ''; 
+                    }, 7000);
+                }
+            };
+            
+            const getMovingTips = async () => {
+                openModal(tipsModalOverlay, tipsModalContent);
+                loaderContainer.style.display = 'flex';
+                tipsContainer.innerHTML = ''; tipsContainer.appendChild(loaderContainer);
+                const itemList = Object.entries(inventoryState).map(([name, data]) => `${data.count}x ${name}`).join(', ');
+                const prompt = `You are an expert moving consultant for 'Square Removals'. A client has provided their inventory list. Your task is to provide friendly, personalized, and actionable packing and moving tips based on their specific items. Be encouraging and professional. Use markdown for formatting (bolding, bullet points). Keep the response concise but helpful, focusing on the most important items or categories in their list. Client's Inventory: - Items: ${itemList} - Total Volume: ${totalVolumeEl.textContent} - Suggested Vehicle: ${suggestionText.innerText}. Start your response with a friendly greeting like "Hello! Here are some personalized tips from the team at Square Removals to help make your move smoother:" Then, provide specific tips based on the items. For example, if they have a 'Piano', mention specialist care. If they have many 'Boxes', suggest a labeling system. If they have 'TV' or 'Mirror', suggest how to protect them. End with a positive closing statement.`;
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                try {
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+                    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                    const result = await response.json();
+                    const text = result.candidates[0].content.parts[0].text;
+                    const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\* (.*?)(?=\n\* |\n\n|$)/g, '<li>$1</li>').replace(/(\<li\>.*?\<\/li\>)/gs, '<ul>$1</ul>').replace(/\n/g, '<br>');
+                    tipsContainer.innerHTML = formattedText;
+                } catch (error) {
+                    tipsContainer.innerHTML = `<p class="text-red-500">Sorry, we couldn't generate tips at this moment. Please try again later.</p><p class="text-xs text-zinc-400">${error.message}</p>`;
+                } finally {
+                    loaderContainer.style.display = 'none';
+                }
+            };
+
+            const addLocationBlock = (type, container, countRef) => {
+                const newBlock = document.createElement('div');
+                const count = countRef.value;
+                newBlock.className = `${type}-block bg-zinc-50 p-4 rounded-lg border border-black relative`;
+                
+                newBlock.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-bold text-zinc-800">${type.charAt(0).toUpperCase() + type.slice(1)} Details #${count}</h4>
+                        ${count > 1 ? `<button type="button" class="remove-${type}-btn text-red-500 hover:text-red-700 font-bold text-xl">&times;</button>` : ''}
+                    </div>
+                    <div><label for="${type}-street-${count}" class="form-label">Street Address</label><input type="text" id="${type}-street-${count}" class="form-input ${type}-street" required></div>
+                    <div class="space-y-4 mt-4">
+                         <div><label for="${type}-area-${count}" class="form-label">Area (e.g., Sandton)</label><input type="text" id="${type}-area-${count}" class="form-input ${type}-area" required></div>
+                         <div><label for="${type}-city-${count}" class="form-label">City</label><input type="text" id="${type}-city-${count}" class="form-input ${type}-city" required></div>
+                         <div><label for="${type}-province-${count}" class="form-label">Province</label><input type="text" id="${type}-province-${count}" class="form-input ${type}-province" required></div>
+                         <div><label for="${type}-postal-${count}" class="form-label">Postal Code</label><input type="text" id="${type}-postal-${count}" class="form-input ${type}-postal" required></div>
+                    </div>
+                    <div class="mt-4">
+                        <span class="form-label">Property Type</span>
+                        <div class="flex flex-wrap items-center gap-4 mt-1">
+                            <label><input type="radio" name="${type}-property-${count}" value="Freestanding House" class="mr-1" checked> Freestanding House</label>
+                            <label><input type="radio" name="${type}-property-${count}" value="Apartment" class="mr-1"> Apartment</label>
+                            <label><input type="radio" name="${type}-property-${count}" value="Town House" class="mr-1"> Town House</label>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <span class="form-label">Are there stairs?</span>
+                        <div class="flex items-center gap-4 mt-1">
+                            <label><input type="radio" name="${type}-stairs-${count}" value="lift" class="mr-1"> Lift Available</label>
+                            <label><input type="radio" name="${type}-stairs-${count}" value="stairs" class="mr-1"> Stairs Only</label>
+                            <label><input type="radio" name="${type}-stairs-${count}" value="ground" class="mr-1" checked> Ground Floor</label>
+                        </div>
+                    </div>
+                    <div id="${type}-floor-container-${count}" class="mt-4 hidden"><label for="${type}-floor-${count}" class="form-label">Which floor?</label><input type="number" id="${type}-floor-${count}" class="form-input w-32 ${type}-floor" min="1"></div>
+                    <div class="mt-4">
+                        <span class="form-label">Any truck size restrictions?</span>
+                        <div class="flex items-center gap-4 mt-1">
+                            <label><input type="radio" name="${type}-restrictions-${count}" value="No" class="mr-1" checked> No</label>
+                            <label><input type="radio" name="${type}-restrictions-${count}" value="Yes" class="mr-1"> Yes</label>
+                        </div>
+                    </div>
+                    <div id="${type}-restrictions-details-container-${count}" class="mt-4 hidden">
+                        <label for="${type}-restrictions-details-${count}" class="form-label">Please specify restrictions:</label>
+                        <input type="text" id="${type}-restrictions-details-${count}" class="form-input ${type}-restrictions-details">
+                    </div>
+                `;
+                container.appendChild(newBlock);
+
+                newBlock.querySelectorAll(`input[name="${type}-stairs-${count}"]`).forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        document.getElementById(`${type}-floor-container-${count}`).classList.toggle('hidden', e.target.value === 'ground');
+                    });
+                });
+
+                newBlock.querySelectorAll(`input[name="${type}-restrictions-${count}"]`).forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        document.getElementById(`${type}-restrictions-details-container-${count}`).classList.toggle('hidden', e.target.value === 'No');
+                    });
+                });
+                countRef.value++;
+            };
+
+            // --- INITIALIZATION & LISTENERS ---
+            renderInventory();
+            updateSummary();
+            let pickupCounter = { value: 1 };
+            let dropoffCounter = { value: 1 };
+            addLocationBlock('pickup', pickupContainer, pickupCounter);
+            addLocationBlock('dropoff', dropoffContainer, dropoffCounter);
+
+            inventoryContainer.addEventListener('click', handleCountChange);
+            proceedBtn.addEventListener('click', () => {
+                switchPage(page1, page2);
+                heart.classList.add('shake');
+                setTimeout(() => heart.classList.remove('shake'), 500);
+            });
+            backBtn.addEventListener('click', () => switchPage(page2, page1));
+            
+            addPickupBtn.addEventListener('click', () => addLocationBlock('pickup', pickupContainer, pickupCounter));
+            addDestinationBtn.addEventListener('click', () => addLocationBlock('dropoff', dropoffContainer, dropoffCounter));
+
+            page2.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-pickup-btn')) {
+                    e.target.closest('.pickup-block').remove();
+                }
+                if (e.target.classList.contains('remove-dropoff-btn')) {
+                    e.target.closest('.dropoff-block').remove();
+                }
+            });
+
+            detailsForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const pickups = [];
+                document.querySelectorAll('.pickup-block').forEach(block => {
+                    pickups.push({
+                        street: block.querySelector('.pickup-street').value,
+                        area: block.querySelector('.pickup-area').value,
+                        city: block.querySelector('.pickup-city').value,
+                        province: block.querySelector('.pickup-province').value,
+                        postal: block.querySelector('.pickup-postal').value,
+                        propertyType: block.querySelector('input[name^="pickup-property"]:checked').value,
+                        stairs: block.querySelector('input[name^="pickup-stairs"]:checked').value,
+                        floor: block.querySelector('.pickup-floor').value,
+                        truckRestrictions: block.querySelector('input[name^="pickup-restrictions"]:checked').value,
+                        restrictionsDetails: block.querySelector('.pickup-restrictions-details').value
+                    });
+                });
+
+                const dropoffs = [];
+                document.querySelectorAll('.dropoff-block').forEach(block => {
+                    dropoffs.push({
+                        street: block.querySelector('.dropoff-street').value,
+                        area: block.querySelector('.dropoff-area').value,
+                        city: block.querySelector('.dropoff-city').value,
+                        province: block.querySelector('.dropoff-province').value,
+                        postal: block.querySelector('.dropoff-postal').value,
+                        propertyType: block.querySelector('input[name^="dropoff-property"]:checked').value,
+                        stairs: block.querySelector('input[name^="dropoff-stairs"]:checked').value,
+                        floor: block.querySelector('.dropoff-floor').value,
+                        truckRestrictions: block.querySelector('input[name^="dropoff-restrictions"]:checked').value,
+                        restrictionsDetails: block.querySelector('.dropoff-restrictions-details').value
+                    });
+                });
+
+                const clientDetails = {
+                    name: document.getElementById('name').value,
+                    surname: document.getElementById('surname').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    moveDate: moveDateInput.value,
+                    moveTime: document.getElementById('move-time').value,
+                    pickups: pickups,
+                    dropoffs: dropoffs
+                };
+                generateFinalSummary(clientDetails);
+                await sendQuoteEmails(clientDetails, getFullSummaryText(clientDetails));
+            });
+            
+            geminiTipsBtn.addEventListener('click', getMovingTips);
+            closeListModalBtn.addEventListener('click', () => closeModal(listModalOverlay));
+            listModalOverlay.addEventListener('click', (e) => e.target === listModalOverlay && closeModal(listModalOverlay));
+            closeTipsModalBtn.addEventListener('click', () => closeModal(tipsModalOverlay));
+            tipsModalOverlay.addEventListener('click', (e) => e.target === tipsModalOverlay && closeModal(tipsModalOverlay));
+            copyListBtn.addEventListener('click', (e) => {
+                 const pickups = [];
+                document.querySelectorAll('.pickup-block').forEach(block => {
+                    pickups.push({
+                        street: block.querySelector('.pickup-street').value,
+                        area: block.querySelector('.pickup-area').value,
+                        city: block.querySelector('.pickup-city').value,
+                        province: block.querySelector('.pickup-province').value,
+                        postal: block.querySelector('.pickup-postal').value,
+                        propertyType: block.querySelector('input[name^="pickup-property"]:checked').value,
+                        stairs: block.querySelector('input[name^="pickup-stairs"]:checked').value,
+                        floor: block.querySelector('.pickup-floor').value,
+                        truckRestrictions: block.querySelector('input[name^="pickup-restrictions"]:checked').value,
+                        restrictionsDetails: block.querySelector('.pickup-restrictions-details').value
+                    });
+                });
+                const dropoffs = [];
+                document.querySelectorAll('.dropoff-block').forEach(block => {
+                    dropoffs.push({
+                        street: block.querySelector('.dropoff-street').value,
+                        area: block.querySelector('.dropoff-area').value,
+                        city: block.querySelector('.dropoff-city').value,
+                        province: block.querySelector('.dropoff-province').value,
+                        postal: block.querySelector('.dropoff-postal').value,
+                        propertyType: block.querySelector('input[name^="dropoff-property"]:checked').value,
+                        stairs: block.querySelector('input[name^="dropoff-stairs"]:checked').value,
+                        floor: block.querySelector('.dropoff-floor').value,
+                        truckRestrictions: block.querySelector('input[name^="dropoff-restrictions"]:checked').value,
+                        restrictionsDetails: block.querySelector('.dropoff-restrictions-details').value
+                    });
+                });
+                const clientDetails = { name: document.getElementById('name').value, surname: document.getElementById('surname').value, email: document.getElementById('email').value, phone: document.getElementById('phone').value, moveDate: moveDateInput.value, moveTime: document.getElementById('move-time').value, pickups: pickups, dropoffs: dropoffs };
+                copyToClipboard(getFullSummaryText(clientDetails));
+            });
+
+            customItemForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const nameInput = document.getElementById('custom-item-name');
+                const sizeInput = document.getElementById('custom-item-size');
+                const quantityInput = document.getElementById('custom-item-quantity');
+
+                const name = nameInput.value.trim();
+                const size = parseFloat(sizeInput.value);
+                const quantity = parseInt(quantityInput.value);
+
+                if (name && size > 0 && quantity > 0) {
+                    const customItemName = `(Custom) ${name}`;
+                    const currentItem = inventoryState[customItemName] || { count: 0, size: size };
+                    inventoryState[customItemName] = {
+                        count: currentItem.count + quantity,
+                        size: size
+                    };
+                    updateSummary();
+                    nameInput.value = '';
+                    sizeInput.value = '';
+                    quantityInput.value = '';
+                }
+            });
+
+            // Set min date for date picker to today
+            const today = new Date().toISOString().split('T')[0];
+            moveDateInput.setAttribute('min', today);
+        });
+    </script>
+</body>
+</html>
+
+
